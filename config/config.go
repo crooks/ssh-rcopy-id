@@ -11,9 +11,10 @@ import (
 )
 
 type Flags struct {
-	Config string
-	Hosts  string
-	KeyDir string
+	Config   string
+	Hosts    string
+	KeyDir   string
+	Loglevel string
 }
 
 type Config struct {
@@ -45,14 +46,21 @@ func ParseConfig(filename string) (*Config, error) {
 	if err := y.Decode(&config); err != nil {
 		return nil, err
 	}
+	// Make info the default loglevel
+	if config.LogLevel == "" {
+		config.LogLevel = "info"
+	}
 	// By default on Unix/Linux systems, SSH key pairs will be in ~/.ssh
 	if config.Authentication.SSHKeyDir == "" {
 		config.Authentication.SSHKeyDir = ExpandTilde("~/.ssh")
 	} else {
 		config.Authentication.SSHKeyDir = ExpandTilde(config.Authentication.SSHKeyDir)
 	}
-	if config.LogLevel == "" {
-		config.LogLevel = "info"
+	// Try to guess the source directory for public keys
+	if config.Source.KeyDir == "" {
+		config.Source.KeyDir = path.Join(pwd(), "keys")
+	} else {
+		config.Source.KeyDir = ExpandTilde(config.Source.KeyDir)
 	}
 	if config.Dest.BaseHomedir == "" {
 		config.Dest.BaseHomedir = "/home"
@@ -64,12 +72,6 @@ func ParseConfig(filename string) (*Config, error) {
 	if config.Dest.AuthKeysFile == "" {
 		config.Dest.AuthKeysFile = "authorized_keys"
 	}
-	// Try to guess the source directory for public keys
-	if config.Source.KeyDir == "" {
-		config.Source.KeyDir = path.Join(pwd(), "keys")
-	} else {
-		config.Source.KeyDir = ExpandTilde(config.Source.KeyDir)
-	}
 	return config, nil
 }
 
@@ -78,6 +80,7 @@ func ParseFlags() *Flags {
 	flag.StringVar(&f.Config, "config", "ssh-rcopy-id.yml", "Path to the config file")
 	flag.StringVar(&f.Hosts, "hosts", "", "Comma seperated list of hostnames")
 	flag.StringVar(&f.KeyDir, "keydir", "", "Location of the public keys directory on the source host")
+	flag.StringVar(&f.Loglevel, "loglevel", "", "Override the default loglevel (info)")
 	flag.Parse()
 	return f
 }

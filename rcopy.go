@@ -83,7 +83,6 @@ func (t *Targets) readAuthFiles(dir string) {
 		log.Fatalf("Unable to read auth files: %v", err)
 	}
 	for _, f := range fileList {
-		fmt.Println(filepath.Ext(f.Name()))
 		if filepath.Ext(f.Name()) == auth_keys_extension {
 			userName := strings.TrimSuffix(f.Name(), filepath.Ext(f.Name()))
 			log.Debugf("Adding %s to users list", userName)
@@ -153,12 +152,30 @@ func (t *Targets) iterUsers(hostName string, client *ssh.Client) {
 		userSSHDir := path.Join(userDir, cfg.Dest.KeyDir)
 		userAuthKeysFile := path.Join(userSSHDir, cfg.Dest.AuthKeysFile)
 		srcKeyFile := path.Join(cfg.Source.KeyDir, userName+auth_keys_extension)
-		// Test if the user has a homedir.  If not, ignore it and move on.
+		// Create an sftp instance
 		sftpc, err := sftp.NewClient(client)
 		if err != nil {
 			log.Warnf("%s: SFTP connection failure: %v", sshID, err)
 		}
-		stat, err := sftpc.Stat(userDir)
+		// Test if an authorized_keys file already exists for this user.  If it does, don't overwrite it.
+		stat, err := sftpc.Stat(userAuthKeysFile)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				// This is the only result that doesn't abort this user iteration.
+				log.Debugf("%s: File %s doesn't exist.  Attempting to create it.", sshID, userAuthKeysFile)
+			} else {
+				log.Warnf("%s: SFTP Stat failure: %v", sshID, err)
+				continue
+			}
+		} else if stat.IsDir() {
+			log.Warnf("%s: %s is a directory! Not overwriting.", sshID, userAuthKeysFile)
+			continue
+		} else {
+			log.Infof("%s: File %s already exists.  Not overwriting.", sshID, userAuthKeysFile)
+			continue
+		}
+		// Test if the user has a homedir.  If not, ignore it and move on.
+		stat, err = sftpc.Stat(userDir)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				log.Infof("%s: Homedir %s does not exist. Ignoring.", sshID, userDir)
@@ -247,6 +264,9 @@ func configParse(filename string) {
 	cfg, err = config.ParseConfig(filename)
 	if err != nil {
 		log.Fatalf("Unable to parse config: %v", err)
+	}
+	if flags.Loglevel != "" {
+		cfg.LogLevel = flags.Loglevel
 	}
 	// If the keydir flag has been specified, override the config setting
 	if flags.KeyDir != "" {
