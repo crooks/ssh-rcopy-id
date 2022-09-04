@@ -159,19 +159,18 @@ func (t *Targets) iterUsers(hostName string, client *ssh.Client) {
 		}
 		// Test if an authorized_keys file already exists for this user.  If it does, don't overwrite it.
 		stat, err := sftpc.Stat(userAuthKeysFile)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				// This is the only result that doesn't abort this user iteration.
-				log.Debugf("%s: File %s doesn't exist.  Attempting to create it.", sshID, userAuthKeysFile)
+		if err == nil {
+			if stat.IsDir() {
+				log.Warnf("%s: %s is a directory! Not overwriting.", sshID, userAuthKeysFile)
 			} else {
-				log.Warnf("%s: SFTP Stat failure: %v", sshID, err)
-				continue
+				log.Infof("%s: File %s already exists.  Not overwriting.", sshID, userAuthKeysFile)
 			}
-		} else if stat.IsDir() {
-			log.Warnf("%s: %s is a directory! Not overwriting.", sshID, userAuthKeysFile)
 			continue
+		} else if errors.Is(err, os.ErrNotExist) {
+			// This is the only result that doesn't abort this user iteration.
+			log.Debugf("%s: File %s doesn't exist.  Attempting to create it.", sshID, userAuthKeysFile)
 		} else {
-			log.Infof("%s: File %s already exists.  Not overwriting.", sshID, userAuthKeysFile)
+			log.Warnf("%s: SFTP Stat failure: %v", sshID, err)
 			continue
 		}
 		// Test if the user has a homedir.  If not, ignore it and move on.
@@ -271,6 +270,10 @@ func configParse(filename string) {
 	// If the keydir flag has been specified, override the config setting
 	if flags.KeyDir != "" {
 		cfg.Source.KeyDir = config.ExpandTilde(flags.KeyDir)
+	}
+	// The destdir flag overrides the config file specification.
+	if flags.DestDir != "" {
+		cfg.Dest.KeyDir = config.ExpandTilde(flags.DestDir)
 	}
 	isdir, err := isDir(cfg.Source.KeyDir)
 	if err != nil {

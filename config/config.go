@@ -15,6 +15,7 @@ type Flags struct {
 	Hosts    string
 	KeyDir   string
 	Loglevel string
+	DestDir  string // Directory where authorized_keys files will be written
 }
 
 type Config struct {
@@ -81,6 +82,7 @@ func ParseFlags() *Flags {
 	flag.StringVar(&f.Hosts, "hosts", "", "Comma seperated list of hostnames")
 	flag.StringVar(&f.KeyDir, "keydir", "", "Location of the public keys directory on the source host")
 	flag.StringVar(&f.Loglevel, "loglevel", "", "Override the default loglevel (info)")
+	flag.StringVar(&f.DestDir, "destdir", "", "Destination directory for authorized_keys file")
 	flag.Parse()
 	return f
 }

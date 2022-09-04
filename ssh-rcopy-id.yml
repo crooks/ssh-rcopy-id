@@ -2,7 +2,7 @@
 loglevel: info
 authentication:
   ssh_private_keys:
-    id_nopass: crooks
+    id_nopass: root
 source:
   ssh_keys_dir: ~/pubkeys
 destination:
