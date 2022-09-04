@@ -1,0 +1,9 @@
+---
+loglevel: info
+authentication:
+  ssh_private_keys:
+    id_nopass: crooks
+source:
+  ssh_keys_dir: ~/pubkeys
+destination:
+  ssh_dir: sshtest
