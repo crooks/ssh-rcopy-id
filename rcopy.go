@@ -148,100 +148,106 @@ func setKeys() *sshcmds.Config {
 func (t *Targets) iterUsers(hostName string, client *ssh.Client) {
 	for _, userName := range t.userNames {
 		sshID := fmt.Sprintf("%s@%s", userName, hostName)
-		userDir := path.Join(cfg.Dest.BaseHomedir, userName)
-		userSSHDir := path.Join(userDir, cfg.Dest.KeyDir)
-		userAuthKeysFile := path.Join(userSSHDir, cfg.Dest.AuthKeysFile)
-		srcKeyFile := path.Join(cfg.Source.KeyDir, userName+auth_keys_extension)
-		// Create an sftp instance
-		sftpc, err := sftp.NewClient(client)
+		err := userAuth(hostName, userName, client)
 		if err != nil {
-			log.Warnf("%s: SFTP connection failure: %v", sshID, err)
-		}
-		// Test if an authorized_keys file already exists for this user.  If it does, don't overwrite it.
-		stat, err := sftpc.Stat(userAuthKeysFile)
-		if err == nil {
-			if stat.IsDir() {
-				log.Warnf("%s: %s is a directory! Not overwriting.", sshID, userAuthKeysFile)
-			} else {
-				log.Infof("%s: File %s already exists.  Not overwriting.", sshID, userAuthKeysFile)
-			}
+			log.Warnf("%s: Failed with: %v", sshID, err)
 			continue
-		} else if errors.Is(err, os.ErrNotExist) {
-			// This is the only result that doesn't abort this user iteration.
-			log.Debugf("%s: File %s doesn't exist.  Attempting to create it.", sshID, userAuthKeysFile)
-		} else {
-			log.Warnf("%s: SFTP Stat failure: %v", sshID, err)
-			continue
-		}
-		// Test if the user has a homedir.  If not, ignore it and move on.
-		stat, err = sftpc.Stat(userDir)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				log.Infof("%s: Homedir %s does not exist. Ignoring.", sshID, userDir)
-				continue
-			} else {
-				log.Warnf("%s: SFTP Stat failure: %v", sshID, err)
-				continue
-			}
-		}
-		if !stat.IsDir() {
-			log.Infof("%s: %s is not a directory. Ignoring.", sshID, userDir)
-			continue
-		}
-		// userDirStat contains the UID and GID of the homedir.  This is useful later for chown on the .ssh dir.
-		userDirStat := stat.Sys().(*sftp.FileStat)
-
-		stat, err = sftpc.Stat(userSSHDir)
-		if err != nil {
-			if errors.Is(err, os.ErrNotExist) {
-				log.Debugf("%s: SSH dir %s does not exist.  Creating it.", sshID, userSSHDir)
-				err = sftpc.Mkdir(userSSHDir)
-				if err != nil {
-					log.Warnf("%s: Unable to create %s: %v", sshID, userSSHDir, err)
-					continue
-				}
-			} else {
-				log.Warnf("%s: SFTP Stat failure: %v", sshID, err)
-				continue
-			}
-			// This check can only be done if err = nil, otherwise it will segfault.
-		} else if !stat.IsDir() {
-			log.Warnf("%s: %s is not a directory", sshID, userSSHDir)
-			continue
-		}
-
-		// Set the owner of the SSH dir to match the parent (E.g. /home/username)
-		log.Debugf("%s: Doing chown %d:%d %s", sshID, int(userDirStat.UID), int(userDirStat.GID), userSSHDir)
-		err = sftpc.Chown(userSSHDir, int(userDirStat.UID), int(userDirStat.GID))
-		if err != nil {
-			log.Warnf("%s: Failed to chown %s", sshID, userSSHDir)
-		}
-		// Chmod the ssh dir to 0700
-		log.Debugf("%s: Doing chmod 0700 %s", sshID, userSSHDir)
-		err = sftpc.Chmod(userSSHDir, 0700)
-		if err != nil {
-			log.Warnf("%s: Failed to chmod 0700 %s", sshID, userSSHDir)
-		}
-		// Actually do the SCP of the authorized_keys file
-		log.Debugf("Performing SCP from %s to %s", srcKeyFile, userAuthKeysFile)
-		err = Scp(client, srcKeyFile, userAuthKeysFile)
-		if err != nil {
-			log.Warnf("%s@%s: scp failed: %v", userName, hostName, err)
-		}
-		// Set the owner of the authorized_keys file to match the parent (E.g. /home/username)
-		log.Debugf("%s: Doing chown %d:%d %s", sshID, int(userDirStat.UID), int(userDirStat.GID), userAuthKeysFile)
-		err = sftpc.Chown(userAuthKeysFile, int(userDirStat.UID), int(userDirStat.GID))
-		if err != nil {
-			log.Warnf("%s: Failed to chown %s", sshID, userAuthKeysFile)
-		}
-		// Set permissions on the authorized_keys file
-		log.Debugf("%s: Doing chmod 0600 %s", sshID, userAuthKeysFile)
-		err = sftpc.Chmod(userAuthKeysFile, 0600)
-		if err != nil {
-			log.Warnf("%s: Failed to chmod 0600 %s", sshID, userAuthKeysFile)
 		}
 		log.Infof("%s: User successfully processed", sshID)
-	} // End of userName iteration
+	}
+}
+
+func userAuth(hostName, userName string, client *ssh.Client) error {
+	sshID := fmt.Sprintf("%s@%s", userName, hostName)
+	userDir := path.Join(cfg.Dest.BaseHomedir, userName)
+	userSSHDir := path.Join(userDir, cfg.Dest.KeyDir)
+	userAuthKeysFile := path.Join(userSSHDir, cfg.Dest.AuthKeysFile)
+	srcKeyFile := path.Join(cfg.Source.KeyDir, userName+auth_keys_extension)
+	// Create an sftp instance
+	sftpc, err := sftp.NewClient(client)
+	if err != nil {
+		return fmt.Errorf("SFTP connection failure: %v", err)
+	}
+	defer sftpc.Close()
+	// Test if an authorized_keys file already exists for this user.  If it does, don't overwrite it.
+	stat, err := sftpc.Stat(userAuthKeysFile)
+	if err == nil {
+		if stat.IsDir() {
+			return fmt.Errorf("%s is a directory", userAuthKeysFile)
+		} else {
+			log.Debugf("%s: %s already exists", sshID, userAuthKeysFile)
+			return nil
+		}
+	} else if errors.Is(err, os.ErrNotExist) {
+		// This is the only result that doesn't abort this user iteration.
+		log.Debugf("%s: %s doesn't exist.  Attempting to create it.", sshID, userAuthKeysFile)
+	} else {
+		return fmt.Errorf("SFTP Stat failure: %v", err)
+	}
+	// Test if the user has a homedir.  If not, ignore it and move on.
+	stat, err = sftpc.Stat(userDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Debugf("%s: Homedir %s does not exist.", sshID, userDir)
+			return nil
+		} else {
+			return fmt.Errorf("SFTP Stat failure: %v", err)
+		}
+	}
+	if !stat.IsDir() {
+		log.Debugf("%s: %s is not a directory. Ignoring.", sshID, userDir)
+		return nil
+	}
+	// userDirStat contains the UID and GID of the homedir.  This is useful later for chown on the .ssh dir.
+	userDirStat := stat.Sys().(*sftp.FileStat)
+
+	stat, err = sftpc.Stat(userSSHDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Debugf("%s: SSH dir %s does not exist.  Creating it.", sshID, userSSHDir)
+			err = sftpc.Mkdir(userSSHDir)
+			if err != nil {
+				return fmt.Errorf("unable to create %s: %v", userSSHDir, err)
+			}
+		} else {
+			return fmt.Errorf("SFTP Stat failure: %v", err)
+		}
+		// This check can only be done if err = nil, otherwise it will segfault.
+	} else if !stat.IsDir() {
+		return fmt.Errorf("%s is not a directory", userSSHDir)
+	}
+
+	// Set the owner of the SSH dir to match the parent (E.g. /home/username)
+	log.Debugf("%s: Doing chown %d:%d %s", sshID, int(userDirStat.UID), int(userDirStat.GID), userSSHDir)
+	err = sftpc.Chown(userSSHDir, int(userDirStat.UID), int(userDirStat.GID))
+	if err != nil {
+		log.Warnf("%s: Failed to chown %s", sshID, userSSHDir)
+	}
+	// Chmod the ssh dir to 0700
+	log.Debugf("%s: Doing chmod 0700 %s", sshID, userSSHDir)
+	err = sftpc.Chmod(userSSHDir, 0700)
+	if err != nil {
+		log.Warnf("%s: Failed to chmod 0700 %s", sshID, userSSHDir)
+	}
+	// Actually do the SCP of the authorized_keys file
+	log.Debugf("Performing SCP from %s to %s", srcKeyFile, userAuthKeysFile)
+	err = Scp(client, srcKeyFile, userAuthKeysFile)
+	if err != nil {
+		return fmt.Errorf("scp failed: %v", err)
+	}
+	// Set the owner of the authorized_keys file to match the parent (E.g. /home/username)
+	log.Debugf("%s: Doing chown %d:%d %s", sshID, int(userDirStat.UID), int(userDirStat.GID), userAuthKeysFile)
+	err = sftpc.Chown(userAuthKeysFile, int(userDirStat.UID), int(userDirStat.GID))
+	if err != nil {
+		log.Warnf("%s: Failed to chown %s", sshID, userAuthKeysFile)
+	}
+	// Set permissions on the authorized_keys file
+	log.Debugf("%s: Doing chmod 0600 %s", sshID, userAuthKeysFile)
+	err = sftpc.Chmod(userAuthKeysFile, 0600)
+	if err != nil {
+		log.Warnf("%s: Failed to chmod 0600 %s", sshID, userAuthKeysFile)
+	}
+	return nil
 }
 
 // iterTargets iterates over a slice of hosts and establishes an SSH client session with them.
