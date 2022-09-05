@@ -1,6 +1,8 @@
 github.com/Masterminds/log-go v1.0.0 h1:yjncypw3bbpezgjTSv+Jsy7+W5Pn/7S5RSoy+Wc8zCI=
 github.com/Masterminds/log-go v1.0.0/go.mod h1:l7N6BwMpaAz9Wn6f7YSz/OTpAbfiKqdB6t++H/EYWoM=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
+github.com/crooks/sshcmds v0.0.0-20220903071444-da8475525708 h1:YwqHkmGYNbznlK/425XBBv3czsIymU4RO4m5IXF7AC0=
+github.com/crooks/sshcmds v0.0.0-20220903071444-da8475525708/go.mod h1:dIh4K8Dv2eu0AwNJZqx6QhpTvN1mFGbmk0L/ME8wH4w=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

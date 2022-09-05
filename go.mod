@@ -14,5 +14,3 @@ require (
 	github.com/kr/fs v0.1.0 // indirect
 	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect
 )
-
-replace github.com/crooks/sshcmds v0.0.0-20220903071444-da8475525708 => /home/crooks/go/src/github.com/crooks/sshcmds
