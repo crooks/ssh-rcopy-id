@@ -169,8 +169,22 @@ func userAuth(hostName, userName string, client *ssh.Client) error {
 		return fmt.Errorf("SFTP connection failure: %v", err)
 	}
 	defer sftpc.Close()
+	// Test if the user has a homedir.  If not, ignore it and move on.
+	stat, err := sftpc.Stat(userDir)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			log.Debugf("%s: Homedir %s does not exist.", sshID, userDir)
+			return nil
+		} else {
+			return fmt.Errorf("SFTP Stat failure: %v", err)
+		}
+	}
+	if !stat.IsDir() {
+		log.Debugf("%s: %s is not a directory. Ignoring.", sshID, userDir)
+		return nil
+	}
 	// Test if an authorized_keys file already exists for this user.  If it does, don't overwrite it.
-	stat, err := sftpc.Stat(userAuthKeysFile)
+	stat, err = sftpc.Stat(userAuthKeysFile)
 	if err == nil {
 		if stat.IsDir() {
 			return fmt.Errorf("%s is a directory", userAuthKeysFile)
@@ -183,20 +197,6 @@ func userAuth(hostName, userName string, client *ssh.Client) error {
 		log.Debugf("%s: %s doesn't exist.  Attempting to create it.", sshID, userAuthKeysFile)
 	} else {
 		return fmt.Errorf("SFTP Stat failure: %v", err)
-	}
-	// Test if the user has a homedir.  If not, ignore it and move on.
-	stat, err = sftpc.Stat(userDir)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			log.Debugf("%s: Homedir %s does not exist.", sshID, userDir)
-			return nil
-		} else {
-			return fmt.Errorf("SFTP Stat failure: %v", err)
-		}
-	}
-	if !stat.IsDir() {
-		log.Debugf("%s: %s is not a directory. Ignoring.", sshID, userDir)
-		return nil
 	}
 	// userDirStat contains the UID and GID of the homedir.  This is useful later for chown on the .ssh dir.
 	userDirStat := stat.Sys().(*sftp.FileStat)
