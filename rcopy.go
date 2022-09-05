@@ -183,6 +183,9 @@ func userAuth(hostName, userName string, client *ssh.Client) error {
 		log.Debugf("%s: %s is not a directory. Ignoring.", sshID, userDir)
 		return nil
 	}
+	// userDirStat contains the UID and GID of the homedir.  This is useful later for chown on the .ssh dir.
+	userDirStat := stat.Sys().(*sftp.FileStat)
+
 	// Test if an authorized_keys file already exists for this user.  If it does, don't overwrite it.
 	stat, err = sftpc.Stat(userAuthKeysFile)
 	if err == nil {
@@ -198,8 +201,6 @@ func userAuth(hostName, userName string, client *ssh.Client) error {
 	} else {
 		return fmt.Errorf("SFTP Stat failure: %v", err)
 	}
-	// userDirStat contains the UID and GID of the homedir.  This is useful later for chown on the .ssh dir.
-	userDirStat := stat.Sys().(*sftp.FileStat)
 
 	stat, err = sftpc.Stat(userSSHDir)
 	if err != nil {
