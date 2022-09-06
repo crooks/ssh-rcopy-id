@@ -16,6 +16,7 @@ type Flags struct {
 	KeyDir   string
 	Loglevel string
 	DestDir  string // Directory where authorized_keys files will be written
+	Force    bool   // Overwrite existing authorized_keys files
 }
 
 type Config struct {
@@ -83,6 +84,7 @@ func ParseFlags() *Flags {
 	flag.StringVar(&f.KeyDir, "keydir", "", "Location of the public keys directory on the source host")
 	flag.StringVar(&f.Loglevel, "loglevel", "", "Override the default loglevel (info)")
 	flag.StringVar(&f.DestDir, "destdir", "", "Destination directory for authorized_keys file")
+	flag.BoolVar(&f.Force, "force", false, "Force overwriting of existing authorized_keys files")
 	flag.Parse()
 	return f
 }

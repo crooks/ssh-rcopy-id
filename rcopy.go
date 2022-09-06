@@ -190,13 +190,18 @@ func userAuth(hostName, userName string, client *ssh.Client) error {
 	stat, err = sftpc.Stat(userAuthKeysFile)
 	if err == nil {
 		if stat.IsDir() {
+			// There is a directory in .ssh called authorized_keys!
 			return fmt.Errorf("%s is a directory", userAuthKeysFile)
-		} else {
+		} else if !flags.Force {
+			// Don't overwrite an existing authorized_keys file
 			log.Debugf("%s: %s already exists", sshID, userAuthKeysFile)
 			return nil
+		} else {
+			// The force flag is set, the authorized_keys file will be overwritten
+			log.Infof("%s: Overwriting existing %s", sshID, userAuthKeysFile)
 		}
 	} else if errors.Is(err, os.ErrNotExist) {
-		// This is the only result that doesn't abort this user iteration.
+		// The authorized_keys file doesn't exist.
 		log.Debugf("%s: %s doesn't exist.  Attempting to create it.", sshID, userAuthKeysFile)
 	} else {
 		return fmt.Errorf("SFTP Stat failure: %v", err)
