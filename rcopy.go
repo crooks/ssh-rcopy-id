@@ -27,6 +27,7 @@ const (
 type Targets struct {
 	hostNames []string
 	userNames []string
+	userScope []string
 }
 
 // ParseLoglevel returns the loglevel integer associated with a common loglevel
@@ -69,10 +70,22 @@ func (t *Targets) splitHostNames(h string) {
 	}
 }
 
+// limitUserScope splits the content of the --limit flag.  If there is some content it returns true to indicate the
+// scope should be limited to a subset of users.
+func (t *Targets) limitUserScope(l string) bool {
+	t.userScope = strings.Split(l, ",")
+	if len(t.userScope) == 1 && t.userNames[0] == "" {
+		return false
+	}
+	log.Debug("Limiting user scope to: %s", l)
+	return true
+}
+
 // readAuthFiles gathers all the filenames in a given directory.  The desired filename format is <username>.auth where
 // username is the name of the user on the remote host.  The file content will be written to the authorized_keys file
 // of that user.
 func (t *Targets) readAuthFiles(dir string) {
+	subset_users := t.limitUserScope(flags.Limit)
 	file, err := os.Open(dir)
 	if err != nil {
 		log.Fatal("Unable to open auth files directory: %v", err)
@@ -85,8 +98,12 @@ func (t *Targets) readAuthFiles(dir string) {
 	for _, f := range fileList {
 		if filepath.Ext(f.Name()) == auth_keys_extension {
 			userName := strings.TrimSuffix(f.Name(), filepath.Ext(f.Name()))
-			log.Debugf("Adding %s to users list", userName)
-			t.userNames = append(t.userNames, userName)
+			// If scope is unlimited, append the user name.  If scope is limited, append the user name if it's in the
+			// --limit scope.
+			if !subset_users || (subset_users && contains(t.userScope, userName)) {
+				log.Debugf("Adding %s to users list", userName)
+				t.userNames = append(t.userNames, userName)
+			}
 		}
 	}
 }
@@ -267,6 +284,16 @@ func (t *Targets) iterTargets(ssh *sshcmds.Config) {
 		t.iterUsers(hostName, client)
 		client.Close()
 	}
+}
+
+// contains returns true if slice contains str.
+func contains(slice []string, str string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }
 
 // configParse populates the cfg global variable and performs some config validation.

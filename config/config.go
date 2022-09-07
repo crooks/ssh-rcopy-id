@@ -17,6 +17,7 @@ type Flags struct {
 	Loglevel string
 	DestDir  string // Directory where authorized_keys files will be written
 	Force    bool   // Overwrite existing authorized_keys files
+	Limit    string // Comma separated list of user accounts for limited scope
 }
 
 type Config struct {
@@ -85,6 +86,7 @@ func ParseFlags() *Flags {
 	flag.StringVar(&f.Loglevel, "loglevel", "", "Override the default loglevel (info)")
 	flag.StringVar(&f.DestDir, "destdir", "", "Destination directory for authorized_keys file")
 	flag.BoolVar(&f.Force, "force", false, "Force overwriting of existing authorized_keys files")
+	flag.StringVar(&f.Limit, "limit", "", "Limit to a comma separated list of users")
 	flag.Parse()
 	return f
 }
