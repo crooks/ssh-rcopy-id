@@ -1,9 +1,13 @@
 ---
 loglevel: info
 authentication:
+  ssh_dir:
   ssh_private_keys:
-    id_nopass: root
+    <keyfilename>: root
+
 source:
   ssh_keys_dir: ~/pubkeys
 destination:
-  ssh_dir: sshtest
+  base_homedir: /home
+  ssh_dir: .ssh
+  authorized_keys: authorized_keys
