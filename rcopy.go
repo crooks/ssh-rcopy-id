@@ -74,7 +74,7 @@ func (t *Targets) splitHostNames(h string) {
 // scope should be limited to a subset of users.
 func (t *Targets) limitUserScope(l string) bool {
 	t.userScope = strings.Split(l, ",")
-	if len(t.userScope) == 1 && t.userNames[0] == "" {
+	if len(t.userScope) == 1 && t.userScope[0] == "" {
 		return false
 	}
 	log.Debug("Limiting user scope to: %s", l)
