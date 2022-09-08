@@ -61,13 +61,24 @@ func newTargets() *Targets {
 	return &Targets{}
 }
 
-// splitHostNames splits a comma separated string of hostnames into a slice
+// splitHostNames populates the hostNames list, either by splitting the --hosts flag content or by reading the list
+// of hosts in the config.
 func (t *Targets) splitHostNames(h string) {
-	// Deal with comma separated hostNames and userNames flags
-	t.hostNames = strings.Split(flags.Hosts, ",")
-	if len(t.hostNames) == 1 && t.hostNames[0] == "" {
-		log.Fatal("No destination hostnames specified")
+	// If the passed list of hosts is empty, no hosts have been specified.
+	if h == "" {
+		// The --hosts flag is empty, try to use config.Dest.Hosts
+		if len(cfg.Dest.Hosts) == 0 {
+			log.Fatal("No destination hosts specified")
+		}
+		t.hostNames = cfg.Dest.Hosts
+	} else {
+		// Deal with comma separated hostNames and userNames flags
+		t.hostNames = strings.Split(h, ",")
+		if len(t.hostNames) == 1 && t.hostNames[0] == "" {
+			log.Fatal("Unable to parse the --hosts flag")
+		}
 	}
+	log.Debugf("Processing hosts: %s", strings.Join(t.hostNames, ","))
 }
 
 // limitUserScope splits the content of the --limit flag.  If there is some content it returns true to indicate the
@@ -337,9 +348,9 @@ func main() {
 	}
 	log.Current = log.StdLogger{Level: loglevel}
 	// cfg.Source.SSHKeys defines the keys to use for authentication to the destination hosts (probably root keys)
-	ssh := setKeys()
 	t := newTargets()
 	t.splitHostNames(flags.Hosts)
 	t.readAuthFiles(cfg.Source.KeyDir)
+	ssh := setKeys()
 	t.iterTargets(ssh)
 }
