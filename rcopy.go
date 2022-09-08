@@ -77,7 +77,7 @@ func (t *Targets) limitUserScope(l string) bool {
 	if len(t.userScope) == 1 && t.userScope[0] == "" {
 		return false
 	}
-	log.Debug("Limiting user scope to: %s", l)
+	log.Debugf("Limiting user scope to: %s", l)
 	return true
 }
 
