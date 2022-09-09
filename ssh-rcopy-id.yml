@@ -11,3 +11,6 @@ destination:
   base_homedir: /home
   ssh_dir: .ssh
   authorized_keys: authorized_keys
+  hosts:
+    - notarealone
+    - anotherfake

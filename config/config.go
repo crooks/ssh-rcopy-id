@@ -30,9 +30,10 @@ type Config struct {
 		KeyDir string `yaml:"ssh_keys_dir"`
 	} `yaml:"source"`
 	Dest struct {
-		BaseHomedir  string `yaml:"base_homedir"`
-		KeyDir       string `yaml:"ssh_dir"`
-		AuthKeysFile string `yaml:"authorized_keys"`
+		BaseHomedir  string   `yaml:"base_homedir"`
+		KeyDir       string   `yaml:"ssh_dir"`
+		AuthKeysFile string   `yaml:"authorized_keys"`
+		Hosts        []string `yaml:"hosts"`
 	} `yaml:"destination"`
 }
 
